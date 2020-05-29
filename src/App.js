@@ -2,23 +2,25 @@ import React from 'react';
 import './App.css';
 import { Blockchain, Block, Transaction } from './blockchain';
 import io from 'socket.io-client';
-import axios from 'axios';
-import { findAllByAltText } from '@testing-library/react';
+import { ec } from 'elliptic';
+
+const _ec = new ec('secp256k1');
 
 const blockchain = new Blockchain();
 
 class App extends React.Component {
   state = {
     BitcoinFake: null,
-    privateKey: null,
-    publicKey: null,
+    privateKey: '',
+    publicKey: '',
+    balance: 0
   }
   socket = null;
 
   async componentWillMount() {
     this.socket = io('localhost:3000');
 
-    this.socket.on('CURRENT_BLOCKCHAIN', BitcoinFake => {
+    this.socket.on('UPDATED_BLOCKCHAIN', BitcoinFake => {
       this.setState({ BitcoinFake: BitcoinFake });
     });
 
@@ -27,38 +29,41 @@ class App extends React.Component {
       newBlockChain.pendingTransactions = transactions;
       this.setState({ BitcoinFake: newBlockChain });
     });
+
+    this.socket.on('TRANSACTIONS_NEED_TO_MINE', transactions => {
+      const block = new Block(Date.now(), transactions, this.state.BitcoinFake.chain.slice(-1)[0].hash);
+      block.mineBlock(this.state.BitcoinFake.difficulty);
+
+      this.socket.emit('MINED', block);
+    });
   }
 
   Register = () => {
     this.socket.emit('CREATE_NEW_WALLET');
-    this.socket.on('NEW_WALLET', ({ publicKey, privateKey }) => {
-      this.setState({ publicKey, privateKey });
+    this.socket.on('NEW_WALLET', ({ publicKey, privateKey, balance }) => {
+      this.setState({ publicKey, privateKey, balance });
     });
   }
 
   CreateNewTransaction = () => {
-    this.socket.emit('CREATE_NEW_TRANSACTION', {
-      privateKey: this.state.privateKey,
-      sender: this.state.publicKey,
-      receiver: "122a2c2b2d22e222222f22b22aa2222",
-      amount: 10
-    });
+    if (this.state.balance <= 0) {
+      alert('Số dư không đủ');
+      return;
+    }
+    const balance = this.state.balance - 10;
+
+    const myKey = _ec.keyFromPrivate(this.state.privateKey);
+
+    const tx = new Transaction(this.state.publicKey, '122a2c2b2d22e222222f22b22aa2222', 10);
+    tx.signTransaction(myKey);
+
+    this.socket.emit('CREATE_NEW_TRANSACTION', tx);
+
+    this.setState({ balance: balance >= 0 ? balance : 0 });
   }
 
-  Mine = async () => {
-    const block = new Block(Date.now(), this.state.transactions, this.state.lastestBlock.hash);
-    block.mineBlock(this.state.BitcoinFake.difficulty);
-
-    try {
-      const res = await axios.post('http://localhost:3000/new_block', {
-        block
-      }, {
-        'Content-Type': 'application/json'
-      });
-      this.setState({ ...res.data });
-    } catch (error) {
-      alert(JSON.stringify(error))
-    }
+  Mine = () => {
+    this.socket.emit('MINE');
   }
 
   render() {
@@ -74,6 +79,7 @@ class App extends React.Component {
 
         <div>private key: {this.state.privateKey}</div>
         <div>public key: {this.state.publicKey}</div>
+        <div>balance: {this.state.balance}</div>
 
         <div>-----------------------------------</div>
 
@@ -82,7 +88,7 @@ class App extends React.Component {
 
         <div>-----------------------------------</div>
 
-        <div>Transactions ({BitcoinFake ? BitcoinFake.pendingTransactions.length : 0})</div>
+        <div>Pendding transactions({BitcoinFake ? BitcoinFake.pendingTransactions.length : 0})</div>
         <div>{JSON.stringify(BitcoinFake ? BitcoinFake.pendingTransactions : [])}</div>
       </div>
     );
