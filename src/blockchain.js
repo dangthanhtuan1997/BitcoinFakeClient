@@ -8,6 +8,7 @@ class Transaction {
         this.toAddress = toAddress;
         this.amount = amount;
         this.timestamp = Date.now();
+        this.TXID = crypto.randomBytes(32).toString('hex');
     }
 
     calculateHash() {
