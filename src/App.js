@@ -280,7 +280,7 @@ class App extends React.Component {
                         <Timeline.Item dot={<ClockCircleOutlined className="timeline-clock-icon" />} color="red" >
                           <p>Transaction {moment(transaction.timestamp).format('YYYY-MM-DD HH:MM:SS')}</p>
 
-                          <Collapse style={{ background: this.state.BitcoinFake.pendingTransactions.find(x => x.TXID === transaction.TXID) ? 'yellow' : transaction.toAddress === this.state.search ? 'green': 'red' }} onChange={() => { }}>
+                          <Collapse style={{ background: this.state.BitcoinFake.pendingTransactions.find(x => x.TXID === transaction.TXID) ? 'yellow' : transaction.toAddress === this.state.search ? 'green' : 'red' }} onChange={() => { }}>
                             <Panel header={`TXID: ${transaction.TXID}`} key="1">
                               <p>From: {transaction.fromAddress}</p>
                               <p>To: {transaction.toAddress}</p>
