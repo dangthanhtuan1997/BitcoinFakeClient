@@ -99,7 +99,7 @@ class App extends React.Component {
   }
 
   CreateNewTransaction = () => {
-    if (this.state.balance <= 0) {
+    if (this.state.balance - this.state.amount < 0) {
       this.setState({ errorVisible: true, errorContent: 'Số dư không đủ hoặc chưa đăng ký ví' });
       return;
     }
